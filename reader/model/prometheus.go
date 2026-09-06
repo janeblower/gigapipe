@@ -2,7 +2,6 @@ package model
 
 import (
 	"math"
-	"sync"
 
 	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/model/labels"
@@ -185,7 +184,6 @@ type prolongSeriesIt struct {
 	// staleAt, when set (>= 0), is the timestamp at which the next Next() must
 	// emit a stale marker before advancing to the following real sample.
 	staleAt int64
-	m       sync.Mutex
 }
 
 func (p *prolongSeriesIt) Err() error {
@@ -231,8 +229,6 @@ func (p *prolongSeriesIt) scheduleStaleAfterCurrent() {
 }
 
 func (p *prolongSeriesIt) Seek(t int64) chunkenc.ValueType {
-	p.m.Lock()
-	defer p.m.Unlock()
 	p.staleAt = -1
 	if p.s.Seek(t) == chunkenc.ValNone {
 		return chunkenc.ValNone
@@ -244,9 +240,6 @@ func (p *prolongSeriesIt) Seek(t int64) chunkenc.ValueType {
 }
 
 func (p *prolongSeriesIt) Next() chunkenc.ValueType {
-	p.m.Lock()
-	defer p.m.Unlock()
-
 	// A stale marker was scheduled after the previous real sample: emit it now.
 	if p.staleAt >= 0 {
 		p.timestampMs = p.staleAt
